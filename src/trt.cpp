@@ -95,7 +95,7 @@ void trt_infer::create_device_io_buffer()
         throw std::invalid_argument("Batch size must be at least 1");
     }
 
-    const auto total_bindings = m_engine->getNbBindings();
+    const auto total_bindings = m_engine->getNbIOTensors();
 
     m_bindings.resize(total_bindings);
     m_binding_sizes.resize(total_bindings);
@@ -105,8 +105,8 @@ void trt_infer::create_device_io_buffer()
 
     for (auto i = 0; i < total_bindings; ++i)
     {
-        const char* binding_name = m_engine->getBindingName(i);\
-        nvinfer1::DataType binding_type = m_engine->getBindingDataType(i);
+        const char* binding_name = m_engine->getName();
+        nvinfer1::DataType binding_type = m_engine->getTensorDataType(binding_name);
         nvinfer1::Dims binding_dims;
 
         if (dynamic_shapes) {
@@ -115,7 +115,7 @@ void trt_infer::create_device_io_buffer()
         }
         else
         {
-            binding_dims = m_engine->getBindingDimensions(i);
+            binding_dims = m_engine->getTensorShape(binding_name);
         }
 
         int64_t total_size = volume(binding_dims) * getElementSize(binding_type);
@@ -125,22 +125,12 @@ void trt_infer::create_device_io_buffer()
         m_binding_types[i] = binding_type;
 
         m_bindings[i] = safeCudaMalloc(total_size);
-        if(m_engine->bindingIsInput(i))
-            nr_input_bindings++;
-        else
-            nr_output_bindings++;
-        
+
         #ifdef DEBUG
-        if(m_engine->bindingIsInput(i)){
-            std::cout << "Input binding -> " << binding_name << " -> ";
-        }
-        else{
-            std::cout << "Output binding -> " << binding_name << " -> ";
-        }
-        printf("Index: %d, Name: %s, Type: %d, Dims: ", i, binding_name, binding_type);
+        printf("Index: %d, Name: %s, Type: %lld, ", i, binding_name, binding_type);
         for (int j = 0; j < binding_dims.nbDims; ++j)
         {
-            printf("%d ", binding_dims.d[j]);
+            printf("Dims: %lld ", binding_dims.d[j]);
         }
         std::cout << std::endl;
         #endif
@@ -177,7 +167,7 @@ bool trt_infer::infer()
 
 bool trt_infer::infer(const cudaStream_t& stream)
 {
-    return m_context->enqueueV2(&m_bindings[0], stream, nullptr);
+    return m_context->enqueueV3(stream);
 }
 
 trt_infer::~trt_infer()
