@@ -97,3 +97,45 @@ The folder [`python`](python) includes scripts for exporting models, which are c
 - [x] add c_connector
 - [x] load engine from file
 - [x] gaussian blur
+
+## TensorRT环境搭建-UCPH专用
+
+
+贵UCPH无法使用root权限装东西，所以只能手动下载rpm然后解压了，
+
+```bash
+ wget https://developer.nvidia.com/downloads/compute/machine-learning/tensorrt/10.9.0/local_repo/nv-tensorrt-local-repo-rhel8-10.9.0-cuda-11.8-1.0-1.x86_64.rpm
+rpm2cpio nv-tensorrt-local-repo-rhel8-10.9.0-cuda-11.8.rpm | cpio -idmv
+rpm2cpio ./var/nv-tensorrt-local-repo-rhel8-10.9.0-cuda-11.8/*.rpm | cpio -idmv
+```
+
+这一顿操作完了之后，trt lib目录位于：
+```
+/home/workspace/trt12.8/usr/lib64
+```
+
+trtexec位于：
+```
+/home/workspace/trt10.9/usr/src/tensorrt/bin/trtexec
+```
+
+于是
+```
+LDFLAGS = -L/home/workspace/trt10.9/usr/lib64
+INCLUDEDIRS = -I/home/workspace/trt10.9/TensorRT/include
+```
+
+```
+module load gcc
+module load cuda
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/workspace/trt10.9/usr/lib64
+bash run_all.sh
+```
+
+```
+/usr/bin/ld: cannot find -lnvinfer
+/usr/bin/ld: cannot find -lnvonnxparser
+/usr/bin/ld: cannot find -lnvinfer_plugin
+collect2: error: ld returned 1 exit status
+make: *** [Makefile:34: main] Error 1
+```
